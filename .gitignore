@@ -1,1 +1,15 @@
-node_modules
+# Dependencies
+node_modules/
+
+# Environment variables (keep your Supabase keys out of Git)
+.env.local
+.env.*.local
+.env
+
+# Build output
+build/
+dist/
+
+# Misc
+.DS_Store
+Thumbs.db

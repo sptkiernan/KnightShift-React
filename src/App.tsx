@@ -6,6 +6,7 @@ import About from "./pages/About";
 import Shop from "./pages/Shop";
 import Support from "./pages/Support";
 import Learn from "./pages/Learn";
+import { CartProvider } from "./context/CartContext";
 
 export type PageName = "home" | "about" | "shop" | "support" | "learn";
 
@@ -29,7 +30,7 @@ function App() {
   };
 
   return (
-    <>
+    <CartProvider>
       <a className="skip-link" href="#main-content">
         Skip to main content
       </a>
@@ -39,7 +40,7 @@ function App() {
       <main id="main-content">{renderPage()}</main>
 
       <Footer />
-    </>
+    </CartProvider>
   );
 }
 
