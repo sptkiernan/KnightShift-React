@@ -130,6 +130,9 @@ const rewards: Reward[] = [
 
 type ShopTab = "catalog" | "cart" | "checkout" | "history";
 
+const EMPTY_SHIPPING = { name: "", email: "", address: "" };
+const EMPTY_PAYMENT = { card: "", exp: "", cvv: "", discountCode: "" };
+
 function Shop() {
   const { items, dispatch, subtotal, itemCount } = useCart();
 
@@ -139,8 +142,8 @@ function Shop() {
   const [reward, setReward] = useState<Reward | null>(null);
   const [addedMap, setAddedMap] = useState<Record<number, boolean>>({});
 
-  const [shippingForm, setShippingForm] = useState({ name: "", email: "", address: "" });
-  const [paymentForm, setPaymentForm] = useState({ card: "", exp: "", cvv: "", discountCode: "" });
+  const [shippingForm, setShippingForm] = useState(EMPTY_SHIPPING);
+  const [paymentForm, setPaymentForm] = useState(EMPTY_PAYMENT);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderMessage, setOrderMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
@@ -150,7 +153,7 @@ function Shop() {
   const [isLooking, setIsLooking] = useState(false);
   const [lookupMessage, setLookupMessage] = useState<string | null>(null);
 
-  // Measure the actual navbar height so the sticky tab bar sits flush below it
+  // Measure navbar height so sticky tab bar sits flush beneath it
   const [navbarHeight, setNavbarHeight] = useState(85);
   useEffect(() => {
     const navbar = document.querySelector(".navbar") as HTMLElement | null;
@@ -161,6 +164,16 @@ function Shop() {
     ro.observe(navbar);
     return () => ro.disconnect();
   }, []);
+
+  // Clear checkout state whenever the user navigates away from checkout tab
+  useEffect(() => {
+    if (activeTab !== "checkout") {
+      setStep(0);
+      setShippingForm(EMPTY_SHIPPING);
+      setPaymentForm(EMPTY_PAYMENT);
+      setOrderMessage(null);
+    }
+  }, [activeTab]);
 
   const filteredProducts = useMemo(() => {
     if (filter === "all") return products;
@@ -214,9 +227,10 @@ function Shop() {
         type: "success",
       });
       dispatch({ type: "CLEAR_CART" });
+      // Clear form state after successful order
       setStep(0);
-      setShippingForm({ name: "", email: "", address: "" });
-      setPaymentForm({ card: "", exp: "", cvv: "", discountCode: "" });
+      setShippingForm(EMPTY_SHIPPING);
+      setPaymentForm(EMPTY_PAYMENT);
     }
   };
 
@@ -234,6 +248,15 @@ function Shop() {
     } else {
       setOrderHistory(data);
     }
+  };
+
+  // Navigate to a tab — block checkout if cart is empty
+  const handleTabChange = (key: ShopTab) => {
+    if (key === "checkout" && items.length === 0) {
+      setActiveTab("cart");
+      return;
+    }
+    setActiveTab(key);
   };
 
   const tabLabels: { key: ShopTab; label: string }[] = [
@@ -259,19 +282,17 @@ function Shop() {
         </div>
       </section>
 
-      {/* ── Tab Navigation — offset dynamically from measured navbar height ── */}
-      <div
-        className="shop-tab-bar"
-        style={{ top: navbarHeight }}
-      >
+      {/* ── Tab Navigation ─────────────────────────────────────── */}
+      <div className="shop-tab-bar" style={{ top: navbarHeight }}>
         <div className="container">
           <div className="shop-tabs">
             {tabLabels.map(({ key, label }) => (
               <button
                 key={key}
                 className={`shop-tab${activeTab === key ? " active" : ""}`}
-                onClick={() => setActiveTab(key)}
+                onClick={() => handleTabChange(key)}
                 aria-current={activeTab === key ? "page" : undefined}
+                title={key === "checkout" && items.length === 0 ? "Add items to your cart first" : undefined}
               >
                 {label}
               </button>
@@ -310,11 +331,9 @@ function Shop() {
                   return (
                     <div className="col-12 col-md-6 col-xl-3" key={product.id}>
                       <article className="product-card h-100" style={{ display: "flex", flexDirection: "column", padding: "1.25rem" }}>
-                        {/* Badge */}
                         <div style={{ height: "2rem", display: "flex", alignItems: "flex-start", marginBottom: "0.5rem" }}>
                           <span className="badge-soft">{product.category}</span>
                         </div>
-                        {/* Name — 2-line fixed height */}
                         <h3 style={{
                           color: "var(--brown)", margin: "0 0 0.75rem", fontSize: "1rem",
                           fontWeight: 700, lineHeight: 1.35, height: "2.7rem", overflow: "hidden",
@@ -322,7 +341,6 @@ function Shop() {
                         }}>
                           {product.name}
                         </h3>
-                        {/* Description — 3-line fixed height */}
                         <p style={{
                           margin: "0 0 1rem", fontSize: "0.9rem", lineHeight: 1.5,
                           height: "4.05rem", overflow: "hidden", display: "-webkit-box",
@@ -330,7 +348,6 @@ function Shop() {
                         }}>
                           {product.description}
                         </p>
-                        {/* Tags — fixed min-height */}
                         <div style={{
                           display: "flex", flexWrap: "wrap", gap: "0.4rem",
                           minHeight: "4.5rem", alignContent: "flex-start", marginBottom: "1rem",
@@ -339,7 +356,6 @@ function Shop() {
                             <span className="tag" key={tag}>{tag}</span>
                           ))}
                         </div>
-                        {/* Price + Button */}
                         <div style={{ marginTop: "auto" }}>
                           <p style={{ margin: "0 0 0.75rem", fontWeight: 700, color: "var(--brown)", fontSize: "1.05rem" }}>
                             ${product.price.toFixed(2)}
@@ -361,7 +377,6 @@ function Shop() {
             </div>
           </section>
 
-          {/* Reward Game */}
           <section className="section">
             <div className="container center-content">
               <p className="kicker">Take a Chance</p>
@@ -429,6 +444,7 @@ function Shop() {
                   )}
                 </div>
               </div>
+
               <div className="col-12 col-lg-4">
                 <div className="info-card h-100">
                   <h2>Order Summary</h2>
@@ -439,10 +455,22 @@ function Shop() {
                     <span>Total</span>
                     <strong className="price" style={{ fontSize: "1.1rem" }}>${total.toFixed(2)}</strong>
                   </div>
-                  {items.length > 0 && (
-                    <button className="btn btn-brand" style={{ width: "100%", marginTop: "1.25rem" }}
-                      onClick={() => { setActiveTab("checkout"); setStep(0); }}>
+                  {items.length > 0 ? (
+                    <button
+                      className="btn btn-brand"
+                      style={{ width: "100%", marginTop: "1.25rem" }}
+                      onClick={() => { setActiveTab("checkout"); setStep(0); }}
+                    >
                       Proceed to Checkout →
+                    </button>
+                  ) : (
+                    <button
+                      className="btn btn-outline-brand"
+                      style={{ width: "100%", marginTop: "1.25rem" }}
+                      disabled
+                      title="Add items to your cart first"
+                    >
+                      Proceed to Checkout
                     </button>
                   )}
                 </div>
@@ -463,7 +491,9 @@ function Shop() {
                 <div key={label} className={`step-pill${step === i ? " active" : ""}`}>{i + 1}. {label}</div>
               ))}
             </div>
+
             <div className="info-card">
+              {/* Step 0 — Shipping */}
               {step === 0 && (
                 <div className="form-grid">
                   <div>
@@ -483,6 +513,8 @@ function Shop() {
                   </div>
                 </div>
               )}
+
+              {/* Step 1 — Payment */}
               {step === 1 && (
                 <div className="form-grid">
                   <div className="full-width">
@@ -508,57 +540,76 @@ function Shop() {
                   </div>
                 </div>
               )}
+
+              {/* Step 2 — Review */}
               {step === 2 && (
                 <div>
-                  <h3>Review Your Order</h3>
-                  {items.length === 0 ? (
-                    <p style={{ color: "var(--muted)" }}>
-                      Your cart is empty.{" "}
-                      <button className="btn btn-outline-brand" style={{ marginLeft: "0.5rem" }} onClick={() => setActiveTab("catalog")}>
-                        Browse the catalog
-                      </button>
-                    </p>
-                  ) : (
-                    <>
-                      <ul className="cart-list">
-                        {items.map((item) => (
-                          <li className="cart-item" key={item.id}>
-                            <div>
-                              <strong>{item.name}</strong>
-                              <p>{item.quantity} × ${item.price.toFixed(2)} = ${(item.price * item.quantity).toFixed(2)}</p>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                      <div className="summary-row" style={{ marginTop: "1rem" }}>
-                        <span>Ship to:</span><span>{shippingForm.address || "No address entered"}</span>
-                      </div>
-                      <div className="summary-row">
-                        <span>Email:</span><span>{shippingForm.email || "No email entered"}</span>
-                      </div>
-                      {paymentForm.discountCode && (
-                        <div className="summary-row">
-                          <span>Discount code:</span>
-                          <span className="reward-code" style={{ fontSize: "1rem" }}>{paymentForm.discountCode}</span>
+                  <h3 style={{ marginTop: 0, color: "var(--brown)" }}>Review Your Order</h3>
+
+                  {/* Item list */}
+                  <ul className="cart-list" style={{ marginBottom: "1.25rem" }}>
+                    {items.map((item) => (
+                      <li className="cart-item" key={item.id}>
+                        <div>
+                          <strong>{item.name}</strong>
+                          <p>{item.quantity} × ${item.price.toFixed(2)} = ${(item.price * item.quantity).toFixed(2)}</p>
                         </div>
-                      )}
-                      <hr />
+                      </li>
+                    ))}
+                  </ul>
+
+                  {/* Shipping + contact recap */}
+                  <div style={{ marginBottom: "1.25rem" }}>
+                    <p style={{ fontWeight: 700, color: "var(--brown)", marginBottom: "0.4rem" }}>Shipping to</p>
+                    <p style={{ margin: 0 }}>{shippingForm.name || "—"}</p>
+                    <p style={{ margin: 0 }}>{shippingForm.address || "No address entered"}</p>
+                    <p style={{ margin: 0, color: "var(--muted)", fontSize: "0.9rem" }}>{shippingForm.email || "No email entered"}</p>
+                  </div>
+
+                  {/* Order totals */}
+                  <div style={{
+                    background: "var(--cream)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "0.6rem",
+                    padding: "1rem",
+                  }}>
+                    <div className="summary-row">
+                      <span>Subtotal</span>
+                      <span>${subtotal.toFixed(2)}</span>
+                    </div>
+                    <div className="summary-row">
+                      <span>Shipping</span>
+                      <span>${shipping.toFixed(2)}</span>
+                    </div>
+                    {paymentForm.discountCode && (
                       <div className="summary-row">
-                        <span>Total</span><strong className="price">${total.toFixed(2)}</strong>
+                        <span>Discount code</span>
+                        <span className="reward-code" style={{ fontSize: "0.95rem" }}>{paymentForm.discountCode}</span>
                       </div>
-                    </>
-                  )}
+                    )}
+                    <hr style={{ margin: "0.75rem 0" }} />
+                    <div className="summary-row" style={{ fontSize: "1.05rem" }}>
+                      <strong>Total</strong>
+                      <strong style={{ color: "var(--brown)" }}>${total.toFixed(2)}</strong>
+                    </div>
+                  </div>
                 </div>
               )}
-              <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginTop: "1rem" }}>
-                {step > 0 && <button className="btn btn-outline-brand" onClick={() => setStep(step - 1)}>← Back</button>}
-                {step < 2
-                  ? <button className="btn btn-brand" onClick={() => setStep(step + 1)}>Continue →</button>
-                  : <button className="btn btn-brand" onClick={handlePlaceOrder} disabled={isSubmitting || items.length === 0}>
-                      {isSubmitting ? "Placing Order…" : "Place Order"}
-                    </button>
-                }
+
+              {/* Navigation buttons */}
+              <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginTop: "1.25rem" }}>
+                {step > 0 && (
+                  <button className="btn btn-outline-brand" onClick={() => setStep(step - 1)}>← Back</button>
+                )}
+                {step < 2 ? (
+                  <button className="btn btn-brand" onClick={() => setStep(step + 1)}>Continue →</button>
+                ) : (
+                  <button className="btn btn-brand" onClick={handlePlaceOrder} disabled={isSubmitting || items.length === 0}>
+                    {isSubmitting ? "Placing Order…" : "Place Order"}
+                  </button>
+                )}
               </div>
+
               {orderMessage && (
                 <p className={orderMessage.type === "success" ? "order-msg-success" : "order-msg-error"}>
                   {orderMessage.text}
