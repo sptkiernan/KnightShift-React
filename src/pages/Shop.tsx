@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useCart } from "../context/CartContext";
 import { submitOrder, getOrdersByEmail } from "../services/orderService";
 
@@ -117,14 +117,6 @@ const products: Product[] = [
     tags: ["Indonesia", "Wet-hulled", "Green coffee"],
     price: 15,
   },
-  {
-    id: 13,
-    name: "Peru Cajamarca Organic",
-    category: "unroasted",
-    description: "Soft red berry, raw honey, and mild almond. Certified organic, ideal for lighter roasts.",
-    tags: ["Peru", "Washed", "Organic"],
-    price: 16,
-  },
 ];
 
 const rewards: Reward[] = [
@@ -158,6 +150,18 @@ function Shop() {
   const [isLooking, setIsLooking] = useState(false);
   const [lookupMessage, setLookupMessage] = useState<string | null>(null);
 
+  // Measure the actual navbar height so the sticky tab bar sits flush below it
+  const [navbarHeight, setNavbarHeight] = useState(85);
+  useEffect(() => {
+    const navbar = document.querySelector(".navbar") as HTMLElement | null;
+    if (!navbar) return;
+    const update = () => setNavbarHeight(navbar.offsetHeight);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(navbar);
+    return () => ro.disconnect();
+  }, []);
+
   const filteredProducts = useMemo(() => {
     if (filter === "all") return products;
     return products.filter((p) => p.category === filter);
@@ -179,10 +183,6 @@ function Shop() {
     if (reward) return;
     const r = rewards[Math.floor(Math.random() * rewards.length)];
     setReward(r);
-  };
-
-  const handleNextStep = () => {
-    if (step < 2) setStep(step + 1);
   };
 
   const handlePlaceOrder = async () => {
@@ -259,26 +259,18 @@ function Shop() {
         </div>
       </section>
 
-      {/* ── Tab Navigation ─────────────────────────────────────── */}
-      <div style={{ background: "var(--white)", borderBottom: "1px solid var(--border)", position: "sticky", top: "71px", zIndex: 40 }}>
+      {/* ── Tab Navigation — offset dynamically from measured navbar height ── */}
+      <div
+        className="shop-tab-bar"
+        style={{ top: navbarHeight }}
+      >
         <div className="container">
-          <div style={{ display: "flex", gap: "0.25rem", overflowX: "auto", padding: "0.75rem 0 0" }}>
+          <div className="shop-tabs">
             {tabLabels.map(({ key, label }) => (
               <button
                 key={key}
+                className={`shop-tab${activeTab === key ? " active" : ""}`}
                 onClick={() => setActiveTab(key)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  borderBottom: activeTab === key ? "3px solid var(--brown)" : "3px solid transparent",
-                  color: activeTab === key ? "var(--brown)" : "var(--muted)",
-                  fontWeight: activeTab === key ? 700 : 400,
-                  padding: "0.5rem 1.1rem 0.65rem",
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                  fontSize: "0.95rem",
-                  transition: "color 0.15s",
-                }}
                 aria-current={activeTab === key ? "page" : undefined}
               >
                 {label}
@@ -318,58 +310,36 @@ function Shop() {
                   return (
                     <div className="col-12 col-md-6 col-xl-3" key={product.id}>
                       <article className="product-card h-100" style={{ display: "flex", flexDirection: "column", padding: "1.25rem" }}>
-
-                        {/* Badge — fixed height */}
+                        {/* Badge */}
                         <div style={{ height: "2rem", display: "flex", alignItems: "flex-start", marginBottom: "0.5rem" }}>
                           <span className="badge-soft">{product.category}</span>
                         </div>
-
-                        {/* Name — fixed 2-line height */}
+                        {/* Name — 2-line fixed height */}
                         <h3 style={{
-                          color: "var(--brown)",
-                          margin: "0 0 0.75rem",
-                          fontSize: "1rem",
-                          fontWeight: 700,
-                          lineHeight: 1.35,
-                          height: "2.7rem",
-                          overflow: "hidden",
-                          display: "-webkit-box",
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: "vertical",
+                          color: "var(--brown)", margin: "0 0 0.75rem", fontSize: "1rem",
+                          fontWeight: 700, lineHeight: 1.35, height: "2.7rem", overflow: "hidden",
+                          display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
                         }}>
                           {product.name}
                         </h3>
-
-                        {/* Description — fixed 3-line height */}
+                        {/* Description — 3-line fixed height */}
                         <p style={{
-                          margin: "0 0 1rem",
-                          fontSize: "0.9rem",
-                          lineHeight: 1.5,
-                          height: "4.05rem",
-                          overflow: "hidden",
-                          display: "-webkit-box",
-                          WebkitLineClamp: 3,
-                          WebkitBoxOrient: "vertical",
-                          color: "var(--ink)",
+                          margin: "0 0 1rem", fontSize: "0.9rem", lineHeight: 1.5,
+                          height: "4.05rem", overflow: "hidden", display: "-webkit-box",
+                          WebkitLineClamp: 3, WebkitBoxOrient: "vertical", color: "var(--ink)",
                         }}>
                           {product.description}
                         </p>
-
-                        {/* Tags — fixed min-height area */}
+                        {/* Tags — fixed min-height */}
                         <div style={{
-                          display: "flex",
-                          flexWrap: "wrap",
-                          gap: "0.4rem",
-                          minHeight: "4.5rem",
-                          alignContent: "flex-start",
-                          marginBottom: "1rem",
+                          display: "flex", flexWrap: "wrap", gap: "0.4rem",
+                          minHeight: "4.5rem", alignContent: "flex-start", marginBottom: "1rem",
                         }}>
                           {product.tags.map((tag) => (
                             <span className="tag" key={tag}>{tag}</span>
                           ))}
                         </div>
-
-                        {/* Price + Button — pinned to bottom */}
+                        {/* Price + Button */}
                         <div style={{ marginTop: "auto" }}>
                           <p style={{ margin: "0 0 0.75rem", fontWeight: 700, color: "var(--brown)", fontSize: "1.05rem" }}>
                             ${product.price.toFixed(2)}
@@ -391,7 +361,7 @@ function Shop() {
             </div>
           </section>
 
-          {/* ── Reward Game ──────────────────────────────────────── */}
+          {/* Reward Game */}
           <section className="section">
             <div className="container center-content">
               <p className="kicker">Take a Chance</p>
@@ -459,7 +429,6 @@ function Shop() {
                   )}
                 </div>
               </div>
-
               <div className="col-12 col-lg-4">
                 <div className="info-card h-100">
                   <h2>Order Summary</h2>
@@ -584,9 +553,8 @@ function Shop() {
               <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", marginTop: "1rem" }}>
                 {step > 0 && <button className="btn btn-outline-brand" onClick={() => setStep(step - 1)}>← Back</button>}
                 {step < 2
-                  ? <button className="btn btn-brand" onClick={handleNextStep}>Continue →</button>
-                  : <button id="submitOrder" className="btn btn-brand" onClick={handlePlaceOrder}
-                      disabled={isSubmitting || items.length === 0}>
+                  ? <button className="btn btn-brand" onClick={() => setStep(step + 1)}>Continue →</button>
+                  : <button className="btn btn-brand" onClick={handlePlaceOrder} disabled={isSubmitting || items.length === 0}>
                       {isSubmitting ? "Placing Order…" : "Place Order"}
                     </button>
                 }
