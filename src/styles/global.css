@@ -160,13 +160,13 @@ textarea:focus {
 }
 
 .brand-logo {
-  width: 52px;
-  height: 52px;
+  width: 68px;
+  height: 68px;
   object-fit: contain;
 }
 
 .brand-text {
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: var(--brown);
   line-height: 1;
@@ -614,7 +614,7 @@ textarea::placeholder {
 }
 
 /* ============================================================
-   Shopping Cart Styles — David N's Notes 05/05/2026
+   Shopping Cart Styles
    ============================================================ */
 
 /* ── Cart list & items ──────────────────────────────────────── */
@@ -793,7 +793,7 @@ textarea::placeholder {
   }
 
   .brand-text {
-    font-size: 1rem;
+    font-size: 1.2rem;
   }
 
   .section {
